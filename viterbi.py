@@ -9,17 +9,18 @@ import os
 def main():
     # parse command line args
     (fasta_file,
-    param_file,
+    params_file,
     true_tmrca,
     train_iters,
     out_dir,
     suffix) = parse_cl_args()
 
     # load observed data file
-    observed = load_observed_data(fasta_file)
+    #observed = load_observed_data(fasta_file)
 
 
     # load paramaters file
+    p1, p2, p3 = load_params("data/initial_parameters_mu.txt")
 
     # pass observed data and params to new Viterbi object
 
@@ -51,13 +52,15 @@ def parse_cl_args():
 
     (opts, args) = parser.parse_args()
 
-    mandatories  = ['observed_data_fasta_file',
-                    'input_parameter_file',
-                    'true_tmrca_vals_file',
-                    'num_training_iterations',
-                    'output_directory',
-                    'output_file_suffix',
-                    ]
+    # mandatories  = ['observed_data_fasta_file',
+    #                 'input_parameter_file',
+    #                 'true_tmrca_vals_file',
+    #                 'num_training_iterations',
+    #                 'output_directory',
+    #                 'output_file_suffix',
+    #                 ]
+    #TEMP: disable mandatory CL args
+    mandatories = []
 
     for m in mandatories:
         if not opts.__dict__[m]:
@@ -66,13 +69,13 @@ def parse_cl_args():
             sys.exit()
 
     f = opts.observed_data_fasta_file
-    p = opts.input_paramater_file
+    p = opts.input_parameter_file
     t = opts.true_tmrca_vals_file
-    i = opts.n_training_iterations
-    o = os.path.join(opts.output_directory)
-    s = os.path.join(opts.output_file_suffix)
+    i = opts.num_training_iterations
+    o = opts.output_directory
+    s = opts.output_file_suffix
 
-    return (f, p, t, n, o, s)
+    return (f, p, t, i, o, s)
 
 def load_observed_data(fasta_file):
 
@@ -100,8 +103,25 @@ def load_observed_data(fasta_file):
 
 
 
-def load_params(param_file):
-    pass
+def load_params(params_file):
+    p_init = {}
+    p_trans = {}
+    p_emit = {}
+
+    with open(params_file, 'r') as f:
+        for line in f:
+            # print(line)
+            if line == "# Initial probabilities":
+                next(f)
+                record = f.readline().strip().split()
+                while record != "":
+                    p_init[record[0]] = record[1]
+                    record = f.readline().strip().split()
+            if line.strip() == "# Transition Probabilities":
+                print("made it here")
+
+    return (1,1,1)
+
 
 if __name__ == '__main__':
     main()
