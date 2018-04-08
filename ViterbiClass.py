@@ -7,12 +7,11 @@ Model for determining TMRCA from DNA sequence data.
 
 class Viberbi:
 
-    def __init__(fasta_file, param_file):
+    def __init__(p_init, p_trans, p_emit):
 
-        self.p_inits
-        self.p_trans
-        self.p_emits
+        self.p_inits = p_init
+        self.p_trans = p_trans
+        self.p_emits = p_emit
 
-    def load_observed(self, fasta_file):
 
-    def load_params(self, param_file):
+    def compute_path(self):
