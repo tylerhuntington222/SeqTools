@@ -111,14 +111,39 @@ def load_params(params_file):
     with open(params_file, 'r') as f:
         for line in f:
             # print(line)
-            if line == "# Initial probabilities":
+            if line.strip() == "# Initial probabilities":
                 next(f)
                 record = f.readline().strip().split()
-                while record != "":
+                while record != []:
+                    print(record)
+                    print(record[0])
+                    print(record[1])
                     p_init[record[0]] = record[1]
                     record = f.readline().strip().split()
             if line.strip() == "# Transition Probabilities":
-                print("made it here")
+                next(f)
+                next(f)
+                row = 0
+                record = f.readline().strip().split()
+                while record != []:
+                    print(record)
+                    p_trans[row] = {}
+                    for i in range(len(record)):
+                        p_trans[row][i] = record[i]
+                    record = f.readline().strip().split()
+                    row += 1
+            if line.strip() == '# Emission Probabilities':
+                next(f)
+                record = f.readline().strip().split()
+                while record != []:
+                    print(record)
+                    p_emit[row] = {}
+                    for i in range(len(record)):
+                        p_emit[row][i] = record[i]
+                    record = f.readline().strip().split()
+                    row += 1
+            print(p_emit)
+
 
     return (1,1,1)
 
