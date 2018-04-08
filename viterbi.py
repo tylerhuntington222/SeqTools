@@ -16,6 +16,8 @@ def main():
     suffix) = parse_cl_args()
 
     # load observed data file
+    observed = load_observed_data(fasta_file)
+
 
     # load paramaters file
 
@@ -73,7 +75,30 @@ def parse_cl_args():
     return (f, p, t, n, o, s)
 
 def load_observed_data(fasta_file):
-    pass
+
+    seqs = []
+    cur_seq = ""
+
+    # load the sequences into a list
+    with open(fasta_file, 'r') as f:
+        for line in f:
+            if line.startswith(">"):
+                if cur_seq:
+                    seqs.append(cur_seq)
+                    cur_seq = ""
+            else:
+                cur_seq += line.strip()
+    # append the last sequence
+    seqs.append(cur_seq)
+
+    # collapse the two sequences into string of 1's (matches) and 0's (mismatch)
+    res = ""
+    for i in range(len(seqs[0])):
+        res += "1" if seqs[0][i] == seqs[1][i] else "0"
+
+    return(res)
+
+
 
 def load_params(param_file):
     pass
