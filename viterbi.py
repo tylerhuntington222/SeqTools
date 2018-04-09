@@ -5,6 +5,7 @@ as well as the author(s)
 import optparse
 import sys
 import os
+from ViterbiClass import ViterbiClass
 
 def main():
     # parse command line args
@@ -15,16 +16,18 @@ def main():
     out_dir,
     suffix) = parse_cl_args()
 
+    fasta_file = "example/sequences_4mu.fasta"
     # load observed data file
-    #observed = load_observed_data(fasta_file)
-
+    observed = load_observed_data(fasta_file)
 
     # load paramaters file
-    p1, p2, p3 = load_params("data/initial_parameters_mu.txt")
+    p_init, p_trans, p_emit = load_params("example/initial_parameters_4mu.txt")
 
     # pass observed data and params to new Viterbi object
+    viterbi = ViterbiClass(observed, p_init, p_trans, p_emit)
 
     # calculate highest probability path
+    path = viterbi.compute_path()
 
 def parse_cl_args():
 
@@ -115,10 +118,7 @@ def load_params(params_file):
                 next(f)
                 record = f.readline().strip().split()
                 while record != []:
-                    print(record)
-                    print(record[0])
-                    print(record[1])
-                    p_init[record[0]] = record[1]
+                    p_init[int(record[0])] = float(record[1]  )
                     record = f.readline().strip().split()
             if line.strip() == "# Transition Probabilities":
                 next(f)
@@ -126,26 +126,20 @@ def load_params(params_file):
                 row = 0
                 record = f.readline().strip().split()
                 while record != []:
-                    print(record)
                     p_trans[row] = {}
                     for i in range(len(record)):
-                        p_trans[row][i] = record[i]
+                        p_trans[row][i] = float(record[i])
                     record = f.readline().strip().split()
                     row += 1
             if line.strip() == '# Emission Probabilities':
                 next(f)
                 record = f.readline().strip().split()
                 while record != []:
-                    print(record)
-                    p_emit[row] = {}
-                    for i in range(len(record)):
-                        p_emit[row][i] = record[i]
+                    p_emit[int(record[0])] = {}
+                    for i in range(1, len(record)):
+                        p_emit[int(record[0])][i-1] = float(record[i])
                     record = f.readline().strip().split()
-                    row += 1
-            print(p_emit)
-
-
-    return (1,1,1)
+    return (p_init, p_trans, p_emit)
 
 
 if __name__ == '__main__':
