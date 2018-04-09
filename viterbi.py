@@ -100,7 +100,7 @@ def load_observed_data(fasta_file):
     # collapse the two sequences into string of 1's (matches) and 0's (mismatch)
     res = ""
     for i in range(len(seqs[0])):
-        res += "1" if seqs[0][i] == seqs[1][i] else "0"
+        res += "0" if seqs[0][i] == seqs[1][i] else "1"
 
     return(res)
 

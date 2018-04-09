@@ -23,7 +23,7 @@ class ViterbiClass:
 
         # initialize first column of dp_table
         for i in range(len(self.p_inits)):
-            v_k = self.ln(self.p_inits[i]) + self.ln(self.p_emits[i][self.x[0]])
+            v_k = log(self.p_inits[i]) + log(self.p_emits[i][self.x[0]])
             dp_table[0][i] = {v_k: -1}
 
 
@@ -32,12 +32,11 @@ class ViterbiClass:
                 max_prev = float("-inf")
                 for s in self.states:
                     v_l_prev = list(dp_table[i-1][s].keys())[0]
-                    prev = v_l_prev + self.ln(self.p_trans[s][k])
+                    prev = v_l_prev + log(self.p_trans[s][k])
                     if prev > max_prev:
                         max_prev = prev
                         best_s = s
-                print(max_prev)
-                v_k_i = self.ln(self.p_emits[k][self.x[i]]) + max_prev
+                v_k_i = log(self.p_emits[k][self.x[i]]) + max_prev
                 dp_table[i][k] = {v_k_i: best_s}
 
         # initialize most probable path
@@ -45,13 +44,18 @@ class ViterbiClass:
 
         last_col = dp_table[len(self.x)-1]
         print(last_col)
-        best_final = float("-inf")
+        max_final_prob = float("-inf")
         for i in self.states:
             cur = list(last_col[i].keys())[0]
-            if cur > best_final:
-                best_final = i
+            print(cur)
+            if cur > max_final_prob:
+                max_final_prob = cur
+                best_final_state = i
 
-        path.append(best_final)
+        print("Max final prob: ", max_final_prob)
+        print("Highes prob final state: ", best_final_state)
+
+        path.append(best_final_state)
 
 
         for i in range(len(self.x)-2, 0, -1):
@@ -69,10 +73,6 @@ class ViterbiClass:
 
     def get_best_path(self):
         return self.best_path
-
-    @staticmethod
-    def ln(n):
-        return(log(n,2))
 
 
 
