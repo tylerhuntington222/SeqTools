@@ -32,6 +32,10 @@ def main():
 
     # calculate highest probability path
     fb.compute_forward()
+    fb.compute_backward()
+    fb.compute_posterior_probs()
+    fb.compute_posterior_decoding()
+    fb.compute_posterior_means()
 
 def parse_cl_args():
 
