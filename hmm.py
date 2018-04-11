@@ -5,55 +5,126 @@ Note: feel free to modify the starter code below
 
 import optparse
 from math import log
-import numpy as np
+from viterbi import ViterbiClass
+from baum_welch import ForwardBackwardClass
 import sys
 
-TIMES = np.array([0.32, 1.75, 4.54, 9.40])
+# TIMES = np.array([0.32, 1.75, 4.54, 9.40]) # replaced with decodings dict
+                                             # in ViterbiClass.py
 
 def parse_args():
-    """Parse and return command-line arguments"""
 
-    parser = optparse.OptionParser(description='HMM for Tmrca')
-    parser.add_option('-f', '--fasta_filename', type='string', help='path to input fasta file')
-    parser.add_option('-p', '--param_filename', type='string', help='path to input parameter file')
-    parser.add_option('-t', '--truth_filename', type='string', help='path to file of true values')
-    parser.add_option('-i', '--num_iter', type='int', default=15, help='number of Baum-Welch iterations')
-    parser.add_option('-o', '--out_folder', type='string', help='path to folder for output files')
-    parser.add_option('-s', '--suffix', type='string', help='suffix string to include in output files')
+    # set up command line argument parser
+    desc   = "A program to perform Viterbi's Algorithm."
+    parser = optparse.OptionParser(description=desc)
+
+    parser.add_option('-f', '--observed_data_fasta_file', type='string',
+    help='Filepath of observed data in FASTA file format.')
+
+    parser.add_option('-p', '--input_parameter_file',       type='string',
+    help='Filepath of input parameter file.')
+
+    parser.add_option('-t', '--true_tmrca_vals_file',       type='string',
+    help='Filepath of true TMRCA values file.')
+
+    parser.add_option('-i', '--num_training_iterations',       type='int',
+    help='Number of training iterations for parameter estimation.')
+
+    parser.add_option('-o', '--output_directory',       type='string',
+    help='Target directory for output files.')
+
+    parser.add_option('-s', '--output_file_suffix',       type='string',
+    help='Suffix for output files.')
+
     (opts, args) = parser.parse_args()
 
-    mandatories = ['fasta_filename','param_filename','truth_filename','out_folder','suffix']
+    mandatories  = ['observed_data_fasta_file',
+                    'input_parameter_file',
+                    'true_tmrca_vals_file',
+                    'num_training_iterations',
+                    'output_directory',
+                    'output_file_suffix',
+                    ]
+    #TEMP: disable mandatory CL args
+    mandatories = []
+
     for m in mandatories:
         if not opts.__dict__[m]:
             print('mandatory option ' + m + ' is missing\n')
             parser.print_help()
             sys.exit()
 
-    return opts
+    f = opts.observed_data_fasta_file
+    p = opts.input_parameter_file
+    t = opts.true_tmrca_vals_file
+    i = opts.num_training_iterations
+    o = opts.output_directory
+    s = opts.output_file_suffix
+
+    return (f, p, t, i, o, s)
 
 def parse_params(param_filename):
     """ Parse initial parameter file to extract initial, transision, and
     emission probabilities.
     Authors: Andrew H. Chan, Sara Mathieson
     """
-    param_file = open(param_filename,'r')
-    param_lines = param_file.readlines()
-    param_file.close()
-    K = 4
+    p_init = {}
+    p_trans = {}
+    p_emit = {}
 
-    # parse init state
-    init = np.array([float(l.split()[1]) for l in param_lines[2:2+K]])
-    # parse transition matrix
-    tran = np.array([[float(x) for x in l.split()] for l in param_lines[11:11+K]])
-    # parse in emit distribution
-    emit = np.array([[float(l.split()[1]), float(l.split()[2])] for l in param_lines[19:19+K]])
+    with open(param_filename, 'r') as f:
+        for line in f:
+            # print(line)
+            if line.strip() == "# Initial probabilities":
+                next(f)
+                record = f.readline().strip().split()
+                while record != []:
+                    p_init[int(record[0])] = float(record[1]  )
+                    record = f.readline().strip().split()
+            if line.strip() == "# Transition Probabilities":
+                next(f)
+                next(f)
+                row = 0
+                record = f.readline().strip().split()
+                while record != []:
+                    p_trans[row] = {}
+                    for i in range(len(record)):
+                        p_trans[row][i] = float(record[i])
+                    record = f.readline().strip().split()
+                    row += 1
+            if line.strip() == '# Emission Probabilities':
+                next(f)
+                record = f.readline().strip().split()
+                while record != []:
+                    p_emit[int(record[0])] = {}
+                    for i in range(1, len(record)):
+                        p_emit[int(record[0])][i-1] = float(record[i])
+                    record = f.readline().strip().split()
+    return (p_init, p_trans, p_emit)
 
-    # convert to log-space
-    log_initial = np.array([log(x) for x in init])
-    log_transition = np.array([[log(x) for x in row] for row in tran])
-    log_emission = np.array([[log(x) for x in row] for row in emit])
+def load_observed_data(fasta_file):
 
-    return log_initial, log_transition, log_emission
+    seqs = []
+    cur_seq = ""
+
+    # load the sequences into a list
+    with open(fasta_file, 'r') as f:
+        for line in f:
+            if line.startswith(">"):
+                if cur_seq:
+                    seqs.append(cur_seq)
+                    cur_seq = ""
+            else:
+                cur_seq += line.strip()
+    # append the last sequence
+    seqs.append(cur_seq)
+
+    # collapse the two sequences into string of 1's (matches) and 0's (mismatch)
+    res = ""
+    for i in range(len(seqs[0])):
+        res += "0" if seqs[0][i] == seqs[1][i] else "1"
+
+    return(res)
 
 def display_params(params):
     """Create a parameter string to write to a file (for Part 2).
@@ -81,15 +152,50 @@ def display_params(params):
 
     return param_str
 
+def write_decoding_to_file(step_data, outfile):
+    with open(outfile, 'w') as f:
+        f.write("# Viterbi_decoding posterior_decoding posterior_mean")
+        f.write("\n")
+        for vit_dec, post_dec, post_mean in step_data:
+            line = " ".join([str(vit_dec), str(post_dec), str(post_mean)])
+            f.write(line)
+            f.write("\n")
+
 def main():
 
-    # parse commandline arguments
-    opts = parse_args()
-    param_filename = opts.param_filename
+    # parse command line args
+    (fasta_file,
+    params_file,
+    true_tmrca,
+    train_iters,
+    out_dir,
+    suffix) = parse_args()
 
-    # read parameter file
-    init_params = parse_params(opts.param_filename)
-    print(init_params)
+    # fasta_file = "example/sequences_4mu.fasta"
+    # load observed data file
+    observed = load_observed_data(fasta_file)
+
+    # load paramaters file
+    # p_init, p_trans, p_emit = load_params("example/initial_parameters_4mu.txt")
+    p_init, p_trans, p_emit = parse_params(params_file)
+
+    # pass observed data and params to new Viterbi object
+    viterbi = ViterbiClass(observed, p_init, p_trans, p_emit)
+
+    # calculate highest probability path
+    path = viterbi.compute_path()
+
+    # pass observed data and params to new ForwardBackward object
+    fb = ForwardBackwardClass(observed, p_init, p_trans, p_emit)
+    fb.compute_fb()
+    decodings,post_means = fb.get_posteriors()
+
+    print(len(path), len(decodings), len(post_means))
+    step_triples = list(zip(path,decodings,post_means))
+
+    write_decoding_to_file(step_triples, out_dir+suffix+".txt")
+
+
 
 if __name__ == "__main__":
   main()

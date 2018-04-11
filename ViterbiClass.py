@@ -52,8 +52,8 @@ class ViterbiClass:
                 max_final_prob = cur
                 best_final_state = i
 
-        print("Max final prob: ", max_final_prob)
-        print("Highes prob final state: ", best_final_state)
+        # print("Max final prob: ", max_final_prob)
+        # print("Highes prob final state: ", best_final_state)
 
         path.append(best_final_state)
 
@@ -69,7 +69,7 @@ class ViterbiClass:
 
         path = list(map(lambda x: self.decodings[x], path))
         self.best_path = path
-        print(path[:20])
+        return self.best_path
 
     def get_best_path(self):
         return self.best_path

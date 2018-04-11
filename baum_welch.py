@@ -1,154 +1,137 @@
 """
-Top level comment: be sure to include the purpose/contents of this file
-as well as the author(s)
+ForwardBackwardClass.py
+
+Definition of the Viterbi class for building a Hidden Markov
+Model for determining TMRCA from DNA sequence data.
 """
-"""
-Top level comment: be sure to include the purpose/contents of this file
-as well as the author(s)
-"""
-import optparse
-import sys
-import os
-from ForwardBackwardClass import ForwardBackwardClass
+from collections import defaultdict
+from math import log, e
 
-def main():
-    # parse command line args
-    (fasta_file,
-    params_file,
-    true_tmrca,
-    train_iters,
-    out_dir,
-    suffix) = parse_cl_args()
+class ForwardBackwardClass:
+    def __init__(self, observations, p_init, p_trans, p_emit):
 
-    fasta_file = "example/sequences_4mu.fasta"
-    # load observed data file
-    observed = load_observed_data(fasta_file)
+        self.x = [int(i) for i in observations]
+        self.p_inits = p_init
+        self.p_trans = p_trans
+        self.p_emits = p_emit
+        self.states = list(sorted(self.p_trans.keys()))
+        self.state_dict = {0:0.32, 1:1.75, 2:4.54, 3:9.40}
+        self.dp_table = defaultdict(dict)
+        self.p_xbar = -1
+        self.posteriors = []
+        self.post_decodings = []
+        self.post_means = []
 
-    # load paramaters file
-    p_init, p_trans, p_emit = load_params("example/initial_parameters_4mu.txt")
+    def get_posteriors(self):
+        return self.post_decodings, self.post_means
 
-    # pass observed data and params to new ForwardBackward object
-    fb = ForwardBackwardClass(observed, p_init, p_trans, p_emit)
+    def compute_fb(self):
 
-    # calculate highest probability path
-    fb.compute_forward()
-    fb.compute_backward()
-    fb.compute_posterior_probs()
-    fb.compute_posterior_decoding()
-    fb.compute_posterior_means()
+        self.compute_forward()
+        self.compute_backward()
+        self.compute_posterior_probs()
+        self.compute_posterior_decoding()
+        self.compute_posterior_means()
 
-def parse_cl_args():
-
-    # set up command line argument parser
-    desc   = "A program to perform ForwardBackward's Algorithm."
-    parser = optparse.OptionParser(description=desc)
-
-    parser.add_option('-f', '--observed_data_fasta_file', type='string',
-    help='Filepath of observed data in FASTA file format.')
-
-    parser.add_option('-p', '--input_parameter_file',       type='string',
-    help='Filepath of input parameter file.')
-
-    parser.add_option('-t', '--true_tmrca_vals_file',       type='string',
-    help='Filepath of true TMRCA values file.')
-
-    parser.add_option('-i', '--num_training_iterations',       type='int',
-    help='Number of training iterations for parameter estimation.')
-
-    parser.add_option('-o', '--output_directory',       type='string',
-    help='Target directory for output files.')
-
-    parser.add_option('-s', '--output_file_suffix',       type='string',
-    help='Suffix for output files.')
-
-    (opts, args) = parser.parse_args()
-
-    # mandatories  = ['observed_data_fasta_file',
-    #                 'input_parameter_file',
-    #                 'true_tmrca_vals_file',
-    #                 'num_training_iterations',
-    #                 'output_directory',
-    #                 'output_file_suffix',
-    #                 ]
-    #TEMP: disable mandatory CL args
-    mandatories = []
-
-    for m in mandatories:
-        if not opts.__dict__[m]:
-            print('mandatory option ' + m + ' is missing\n')
-            parser.print_help()
-            sys.exit()
-
-    f = opts.observed_data_fasta_file
-    p = opts.input_parameter_file
-    t = opts.true_tmrca_vals_file
-    i = opts.num_training_iterations
-    o = opts.output_directory
-    s = opts.output_file_suffix
-
-    return (f, p, t, i, o, s)
-
-def load_observed_data(fasta_file):
-
-    seqs = []
-    cur_seq = ""
-
-    # load the sequences into a list
-    with open(fasta_file, 'r') as f:
-        for line in f:
-            if line.startswith(">"):
-                if cur_seq:
-                    seqs.append(cur_seq)
-                    cur_seq = ""
-            else:
-                cur_seq += line.strip()
-    # append the last sequence
-    seqs.append(cur_seq)
-
-    # collapse the two sequences into string of 1's (matches) and 0's (mismatch)
-    res = ""
-    for i in range(len(seqs[0])):
-        res += "0" if seqs[0][i] == seqs[1][i] else "1"
-
-    return(res)
+    def compute_forward(self):
 
 
-
-def load_params(params_file):
-    p_init = {}
-    p_trans = {}
-    p_emit = {}
-
-    with open(params_file, 'r') as f:
-        for line in f:
-            # print(line)
-            if line.strip() == "# Initial probabilities":
-                next(f)
-                record = f.readline().strip().split()
-                while record != []:
-                    p_init[int(record[0])] = float(record[1]  )
-                    record = f.readline().strip().split()
-            if line.strip() == "# Transition Probabilities":
-                next(f)
-                next(f)
-                row = 0
-                record = f.readline().strip().split()
-                while record != []:
-                    p_trans[row] = {}
-                    for i in range(len(record)):
-                        p_trans[row][i] = float(record[i])
-                    record = f.readline().strip().split()
-                    row += 1
-            if line.strip() == '# Emission Probabilities':
-                next(f)
-                record = f.readline().strip().split()
-                while record != []:
-                    p_emit[int(record[0])] = {}
-                    for i in range(1, len(record)):
-                        p_emit[int(record[0])][i-1] = float(record[i])
-                    record = f.readline().strip().split()
-    return (p_init, p_trans, p_emit)
+        # initialize first column of dp_table
+        for i in range(len(self.p_inits)):
+            emit_term = log(self.p_emits[i][self.x[0]])
+            init_term = log(self.p_inits[i])
+            f_k = emit_term + init_term
+            self.dp_table[0][i] = {"forward": f_k, "backward": float("-inf")}
 
 
-if __name__ == '__main__':
-    main()
+        # populate DP table
+        for i in range(1, len(self.x)):
+            for k in self.states:
+                emit_term = log(self.p_emits[k][self.x[i]])
+                log_sum = 0
+                counter = 0
+                for s in self.states:
+                    f_l_prev = self.dp_table[i-1][s]["forward"]
+                    prev = f_l_prev + log(self.p_trans[s][k])
+                    if counter > 0:
+                        log_sum = self.log_summer(log_sum, prev)
+                    else:
+                        log_sum = prev
+                    counter += 1
+
+                f_k_i = emit_term + log_sum
+
+                # put this forward value into DP table
+                self.dp_table[i][k] = \
+                    {"forward": f_k_i, "backward": float("-inf")}
+
+        last = list(self.dp_table[len(self.x)-1].values())
+        vals = list(map(lambda x: x["forward"], last))
+
+        self.p_xbar = self.array_log_summer(vals)
+
+    @staticmethod
+    def log_summer(p, q):
+        return(p + log(1 + e**(q-p)))
+
+
+    @staticmethod
+    def rec_array_log_summer(array, acc):
+        if len(array) == 1:
+            return ForwardBackwardClass.log_summer(array[0], acc)
+        else:
+            return ForwardBackwardClass.rec_array_log_summer(array[1:],\
+             ForwardBackwardClass.log_summer(array[0], acc))
+
+    @staticmethod
+    def array_log_summer(array):
+        return(ForwardBackwardClass.rec_array_log_summer(array[1:], array[0]))
+
+    def compute_backward(self):
+        for i in range(len(self.p_inits)):
+            self.dp_table[len(self.dp_table)-1][i]["backward"] = log(1)
+
+        for i in range(len(self.x)-2, -1, -1):
+            for k in self.states:
+                log_sum = 0
+                counter = 0
+                for s in self.states:
+                    emit_term = log(self.p_emits[s][self.x[i+1]])
+                    b_l_prev = self.dp_table[i+1][s]["backward"]
+                    prev = b_l_prev + log(self.p_trans[k][s]) + emit_term
+                    if counter > 0:
+                        log_sum = self.log_summer(log_sum, prev)
+                    else:
+                        log_sum = prev
+                    counter += 1
+
+                b_k_i = log_sum
+                self.dp_table[i][k]["backward"] = b_k_i
+
+    def compute_posterior_probs(self):
+        for i in range(len(self.x)):
+            post_col = []
+            for k in range(len(self.states)):
+                f = self.dp_table[i][k]["forward"]
+                b = self.dp_table[i][k]["backward"]
+                p_i_k = ((f + b) - self.p_xbar, k)
+                post_col.append(p_i_k)
+            self.posteriors.append(post_col)
+
+    def compute_posterior_decoding(self):
+        dec =(list(map(lambda x:(max(x,key=lambda y:y[0]))[1],self.posteriors)))
+        self.post_decodings =  list(map(lambda x: self.state_dict[x], dec))
+
+    def compute_posterior_means(self):
+        for i in range(len(self.x)):
+            mean = 0
+            for k in range(len(self.states)):
+                non_log_p = e**(self.posteriors[i][k][0])
+                p_i_k = non_log_p * self.state_dict[k]
+                mean += p_i_k
+            self.post_means.append(mean)
+
+
+if __name__ == "__main__":
+
+    fb = ForwardBackward

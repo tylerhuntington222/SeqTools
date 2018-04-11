@@ -1,146 +1,86 @@
 """
-Top level comment: be sure to include the purpose/contents of this file
-as well as the author(s)
+ViterbiClass.py
+
+Definition of the Viterbi class for building a Hidden Markov
+Model for determining TMRCA from DNA sequence data.
 """
-import optparse
-import sys
-import os
-from ViterbiClass import ViterbiClass
+from collections import defaultdict
+from math import log
 
-def main():
-    # parse command line args
-    (fasta_file,
-    params_file,
-    true_tmrca,
-    train_iters,
-    out_dir,
-    suffix) = parse_cl_args()
+class ViterbiClass:
+    def __init__(self, observations, p_init, p_trans, p_emit):
 
-    fasta_file = "example/sequences_4mu.fasta"
-    # load observed data file
-    observed = load_observed_data(fasta_file)
+        self.x = [int(i) for i in observations]
+        self.p_inits = p_init
+        self.p_trans = p_trans
+        self.p_emits = p_emit
+        self.states = list(sorted(self.p_trans.keys()))
+        self.decodings = {0:0.32, 1:1.75, 2:4.54, 3:9.40}
+        self.best_path = []
 
-    # load paramaters file
-    p_init, p_trans, p_emit = load_params("example/initial_parameters_4mu.txt")
+    def compute_path(self):
+        dp_table = defaultdict(dict)
 
-    # pass observed data and params to new Viterbi object
-    viterbi = ViterbiClass(observed, p_init, p_trans, p_emit)
+        # initialize first column of dp_table
+        for i in range(len(self.p_inits)):
+            v_k = log(self.p_inits[i]) + log(self.p_emits[i][self.x[0]])
+            dp_table[0][i] = {v_k: -1}
 
-    # calculate highest probability path
-    path = viterbi.compute_path()
+        # populate DP table
+        for i in range(1, len(self.x)):
+            for k in self.states:
+                max_prev = float("-inf")
+                for s in self.states:
+                    v_l_prev = list(dp_table[i-1][s].keys())[0]
+                    prev = v_l_prev + log(self.p_trans[s][k])
+                    if prev > max_prev:
+                        max_prev = prev
+                        best_s = s
+                v_k_i = log(self.p_emits[k][self.x[i]]) + max_prev
+                dp_table[i][k] = {v_k_i: best_s}
 
-def parse_cl_args():
+        # initialize most probable path
+        path = []
 
-    # set up command line argument parser
-    desc   = "A program to perform Viterbi's Algorithm."
-    parser = optparse.OptionParser(description=desc)
+        last_col = dp_table[len(self.x)-1]
+        print(last_col)
+        max_final_prob = float("-inf")
+        for i in self.states:
+            cur = list(last_col[i].keys())[0]
+            print(cur)
+            if cur > max_final_prob:
+                max_final_prob = cur
+                best_final_state = i
 
-    parser.add_option('-f', '--observed_data_fasta_file', type='string',
-    help='Filepath of observed data in FASTA file format.')
+        print("Max final prob: ", max_final_prob)
+        print("Highes prob final state: ", best_final_state)
 
-    parser.add_option('-p', '--input_parameter_file',       type='string',
-    help='Filepath of input parameter file.')
+        path.append(best_final_state)
 
-    parser.add_option('-t', '--true_tmrca_vals_file',       type='string',
-    help='Filepath of true TMRCA values file.')
 
-    parser.add_option('-i', '--num_training_iterations',       type='int',
-    help='Number of training iterations for parameter estimation.')
+        for i in range(len(self.x)-2, 0, -1):
+            backpointer = path[-1]
 
-    parser.add_option('-o', '--output_directory',       type='string',
-    help='Target directory for output files.')
+            prev_state = list(dp_table[i+1][backpointer].values())[0]
+            path.append(prev_state)
 
-    parser.add_option('-s', '--output_file_suffix',       type='string',
-    help='Suffix for output files.')
+        # reverse the path
+        path = list(reversed(path))
 
-    (opts, args) = parser.parse_args()
+        path = list(map(lambda x: self.decodings[x], path))
+        self.best_path = path
+        return(self.best_path)
 
-    # mandatories  = ['observed_data_fasta_file',
-    #                 'input_parameter_file',
-    #                 'true_tmrca_vals_file',
-    #                 'num_training_iterations',
-    #                 'output_directory',
-    #                 'output_file_suffix',
-    #                 ]
-    #TEMP: disable mandatory CL args
-    mandatories = []
-
-    for m in mandatories:
-        if not opts.__dict__[m]:
-            print('mandatory option ' + m + ' is missing\n')
-            parser.print_help()
-            sys.exit()
-
-    f = opts.observed_data_fasta_file
-    p = opts.input_parameter_file
-    t = opts.true_tmrca_vals_file
-    i = opts.num_training_iterations
-    o = opts.output_directory
-    s = opts.output_file_suffix
-
-    return (f, p, t, i, o, s)
-
-def load_observed_data(fasta_file):
-
-    seqs = []
-    cur_seq = ""
-
-    # load the sequences into a list
-    with open(fasta_file, 'r') as f:
-        for line in f:
-            if line.startswith(">"):
-                if cur_seq:
-                    seqs.append(cur_seq)
-                    cur_seq = ""
-            else:
-                cur_seq += line.strip()
-    # append the last sequence
-    seqs.append(cur_seq)
-
-    # collapse the two sequences into string of 1's (matches) and 0's (mismatch)
-    res = ""
-    for i in range(len(seqs[0])):
-        res += "0" if seqs[0][i] == seqs[1][i] else "1"
-
-    return(res)
+    def get_best_path(self):
+        return self.best_path
 
 
 
-def load_params(params_file):
-    p_init = {}
-    p_trans = {}
-    p_emit = {}
 
-    with open(params_file, 'r') as f:
-        for line in f:
-            # print(line)
-            if line.strip() == "# Initial probabilities":
-                next(f)
-                record = f.readline().strip().split()
-                while record != []:
-                    p_init[int(record[0])] = float(record[1]  )
-                    record = f.readline().strip().split()
-            if line.strip() == "# Transition Probabilities":
-                next(f)
-                next(f)
-                row = 0
-                record = f.readline().strip().split()
-                while record != []:
-                    p_trans[row] = {}
-                    for i in range(len(record)):
-                        p_trans[row][i] = float(record[i])
-                    record = f.readline().strip().split()
-                    row += 1
-            if line.strip() == '# Emission Probabilities':
-                next(f)
-                record = f.readline().strip().split()
-                while record != []:
-                    p_emit[int(record[0])] = {}
-                    for i in range(1, len(record)):
-                        p_emit[int(record[0])][i-1] = float(record[i])
-                    record = f.readline().strip().split()
-    return (p_init, p_trans, p_emit)
+
+
+
 
 
 if __name__ == '__main__':
-    main()
+    assert 1==1
