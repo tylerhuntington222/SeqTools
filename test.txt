@@ -1,0 +1,11 @@
+# Viterbi_decoding posterior_decoding posterior_mean
+a b c
+a b c
+a b c
+a b c
+a b c
+a b c
+a b c
+a b c
+a b c
+a b c

@@ -157,7 +157,8 @@ def write_decoding_to_file(step_data, outfile):
         f.write("# Viterbi_decoding posterior_decoding posterior_mean")
         f.write("\n")
         for vit_dec, post_dec, post_mean in step_data:
-            line = " ".join([str(vit_dec), str(post_dec), str(post_mean)])
+            line = " ".join([str(vit_dec), str(post_dec), \
+            ("%.6f" % str(round(post_mean, 6)))])
             f.write(line)
             f.write("\n")
 
@@ -193,7 +194,14 @@ def main():
     print(len(path), len(decodings), len(post_means))
     step_triples = list(zip(path,decodings,post_means))
 
-    write_decoding_to_file(step_triples, out_dir+suffix+".txt")
+    outfile = out_dir+suffix+".txt"
+    write_decoding_to_file(step_triples, outfile)
+
+    # with open(outfile, 'r') as f:
+    #     our_data = f.readlines()
+    #
+    # with open("example/docdings_initial_4mu.txt", 'r') as f:
+    #     our_data = f.readlines()
 
 
 

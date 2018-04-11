@@ -58,7 +58,7 @@ class ViterbiClass:
         path.append(best_final_state)
 
 
-        for i in range(len(self.x)-2, 0, -1):
+        for i in range(len(self.x)-2, -1, -1):
             backpointer = path[-1]
 
             prev_state = list(dp_table[i+1][backpointer].values())[0]
