@@ -43,17 +43,17 @@ class ViterbiClass:
         path = []
 
         last_col = dp_table[len(self.x)-1]
-        print(last_col)
+        # print(last_col)
         max_final_prob = float("-inf")
         for i in self.states:
             cur = list(last_col[i].keys())[0]
-            print(cur)
+            # print(cur)
             if cur > max_final_prob:
                 max_final_prob = cur
                 best_final_state = i
 
-        print("Max final prob: ", max_final_prob)
-        print("Highes prob final state: ", best_final_state)
+        # print("Max final prob: ", max_final_prob)
+        # print("Highes prob final state: ", best_final_state)
 
         path.append(best_final_state)
 

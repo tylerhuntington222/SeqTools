@@ -8,6 +8,7 @@ from math import log
 from viterbi import ViterbiClass
 from baum_welch import ForwardBackwardClass
 import sys
+import matplotlib.pyplot as plt
 
 # TIMES = np.array([0.32, 1.75, 4.54, 9.40]) # replaced with decodings dict
                                              # in ViterbiClass.py
@@ -158,9 +159,21 @@ def write_decoding_to_file(step_data, outfile):
         f.write("\n")
         for vit_dec, post_dec, post_mean in step_data:
             line = " ".join([str(vit_dec), str(post_dec), \
-            ("%.6f" % str(round(post_mean, 6)))])
+            "%.6f" % (round(post_mean, 6))])
             f.write(line)
             f.write("\n")
+
+def make_graph(truth,viterbi,decoding,mean,suffix):
+    plt.plot([i for i in range(len(truth))], truth, '#000000', linewidth=2)
+    plt.plot([i for i in range(len(viterbi))], viterbi, '#006600')
+    plt.plot([i for i in range(len(decoding))], decoding, '#0000FF')
+    plt.plot([i for i in range(len(mean))], mean, '#CC0000')
+    plt.legend(["truth", "Viterbi", "decoding", "mean"], loc=9)
+    plt.title("Initial Decodings, %s" %suffix)
+    plt.xlabel("locus")
+    plt.ylabel("TMRCA")
+    plt.savefig("output/plot_initial_%s.png" %suffix)
+
 
 def main():
 
@@ -171,6 +184,12 @@ def main():
     train_iters,
     out_dir,
     suffix) = parse_args()
+
+    # parse truth
+    with open(true_tmrca, 'r') as f:
+        truth = f.readlines()
+        truth = list(map(lambda x: float(x.strip()), truth))
+
 
     # fasta_file = "example/sequences_4mu.fasta"
     # load observed data file
@@ -191,17 +210,23 @@ def main():
     fb.compute_fb()
     decodings,post_means = fb.get_posteriors()
 
-    print(len(path), len(decodings), len(post_means))
+    # print(len(path), len(decodings), len(post_means))
     step_triples = list(zip(path,decodings,post_means))
 
-    outfile = out_dir+suffix+".txt"
+    outfile = out_dir+"decodings_initial_"+suffix+".txt"
     write_decoding_to_file(step_triples, outfile)
+    make_graph(truth, path, decodings, post_means, suffix)
 
+    # test our data with expected data
     # with open(outfile, 'r') as f:
     #     our_data = f.readlines()
     #
-    # with open("example/docdings_initial_4mu.txt", 'r') as f:
-    #     our_data = f.readlines()
+    # with open("example/decodings_initial_4mu.txt", 'r') as f:
+    #     expected = f.readlines()
+    #
+    # for i in range(len(our_data)):
+    #     assert our_data[i] == expected[i]
+
 
 
 
