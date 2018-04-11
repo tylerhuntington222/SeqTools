@@ -53,16 +53,10 @@ class ForwardBackwardClass:
                 self.dp_table[i][k] = \
                     {"forward": f_k_i, "backward": float("-inf")}
 
-        # print(self.dp_table[len(self.x)-1])
         last = list(self.dp_table[len(self.x)-1].values())
         vals = list(map(lambda x: x["forward"], last))
-        # print(vals)
-        # res = self.log_summer(self.log_summer(vals[0], vals[1]), \
-        # self.log_summer(vals[2], vals[3]))
 
         self.p_xbar = self.array_log_summer(vals)
-
-        # print(res)
 
     @staticmethod
     def log_summer(p, q):
@@ -108,26 +102,23 @@ class ForwardBackwardClass:
             for k in range(len(self.states)):
                 f = self.dp_table[i][k]["forward"]
                 b = self.dp_table[i][k]["backward"]
-                p_i_k = ((f * b) / self.p_xbar, k)
+                p_i_k = ((f + b) - self.p_xbar, k)
                 post_col.append(p_i_k)
             self.posteriors.append(post_col)
-        print(self.posteriors)
 
     def compute_posterior_decoding(self):
         dec =(list(map(lambda x:(max(x,key=lambda y:y[0]))[1],self.posteriors)))
         decodings =  list(map(lambda x: self.state_dict[x], dec))
-        # print(decodings)
-        print("LEN decodings", len(decodings))
 
     def compute_posterior_means(self):
         for i in range(len(self.x)):
             mean = 0
             for k in range(len(self.states)):
-                p_i_k = self.posteriors[i][k][0] * self.state_dict[k]
+                non_log_p = e**(self.posteriors[i][k][0])
+                p_i_k = non_log_p * self.state_dict[k]
                 mean += p_i_k
             self.post_means.append(mean)
 
-        print(self.post_means)
 
 if __name__ == "__main__":
 
