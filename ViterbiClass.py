@@ -26,7 +26,7 @@ class ViterbiClass:
             v_k = log(self.p_inits[i]) + log(self.p_emits[i][self.x[0]])
             dp_table[0][i] = {v_k: -1}
 
-
+        # populate DP table
         for i in range(1, len(self.x)):
             for k in self.states:
                 max_prev = float("-inf")

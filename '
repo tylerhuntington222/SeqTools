@@ -34,15 +34,10 @@ class ForwardBackwardClass:
             for k in self.states:
                 emit_term = log(self.p_emits[k][self.x[i]])
                 log_sum = 0
-                counter = 0
                 for s in self.states:
                     f_l_prev = self.dp_table[i-1][s]["forward"]
                     prev = f_l_prev + log(self.p_trans[s][k])
-                    if counter > 0:
-                        log_sum = self.log_summer(log_sum, prev)
-                    else:
-                        log_sum = prev
-                    counter += 1
+                    log_sum = self.log_summer(log_sum, prev)
                 q_hat = log_sum
 
                 f_k_i = emit_term + log_sum
@@ -51,33 +46,14 @@ class ForwardBackwardClass:
                 self.dp_table[i][k] = \
                     {"forward": f_k_i, "backward": float("-inf")}
 
-        print(self.dp_table[len(self.x)-1])
         last = list(self.dp_table[len(self.x)-1].values())
         vals = list(map(lambda x: x["forward"], last))
         print(vals)
-        res = self.log_summer(self.log_summer(vals[0], vals[1]), \
-        self.log_summer(vals[2], vals[3]))
-
-        print(self.array_log_summer(vals))
-
-        print(res)
+        print(sum(vals))
 
     @staticmethod
     def log_summer(p, q):
         return(p + log(1 + e**(q-p)))
-
-
-    @staticmethod
-    def rec_array_log_summer(array, acc):
-        if len(array) == 1:
-            return ForwardBackwardClass.log_summer(array[0], acc)
-        else:
-            return ForwardBackwardClass.rec_array_log_summer(array[1:],\
-             ForwardBackwardClass.log_summer(array[0], acc))
-
-    @staticmethod
-    def array_log_summer(array):
-        return(ForwardBackwardClass.rec_array_log_summer(array[1:], array[0]))
 
     def compute_backward(self):
         pass
