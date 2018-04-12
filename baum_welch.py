@@ -25,6 +25,9 @@ class ForwardBackwardClass:
     def get_posteriors(self):
         return self.post_decodings, self.post_means
 
+    def get_fw_bw_table(self):
+        return self.dp_table
+
     def compute_fb(self):
 
         self.compute_forward()
