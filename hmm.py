@@ -4,7 +4,7 @@ Note: feel free to modify the starter code below
 """
 
 import optparse
-from math import log
+from math import log, e
 from viterbi import ViterbiClass
 from baum_welch import ForwardBackwardClass
 import sys
@@ -101,7 +101,8 @@ def parse_params(param_filename):
                     for i in range(1, len(record)):
                         p_emit[int(record[0])][i-1] = float(record[i])
                     record = f.readline().strip().split()
-    return (p_init, p_trans, p_emit)
+    states = list(map(lambda x: int(x), p_init.keys()))
+    return (p_init, p_trans, p_emit, states)
 
 def load_observed_data(fasta_file):
 
@@ -194,10 +195,11 @@ def main():
     # fasta_file = "example/sequences_4mu.fasta"
     # load observed data file
     observed = load_observed_data(fasta_file)
+    xs = list(map(int, observed))
 
     # load paramaters file
     # p_init, p_trans, p_emit = load_params("example/initial_parameters_4mu.txt")
-    p_init, p_trans, p_emit = parse_params(params_file)
+    p_init, p_trans, p_emit, states = parse_params(params_file)
 
     # pass observed data and params to new Viterbi object
     viterbi = ViterbiClass(observed, p_init, p_trans, p_emit)
@@ -208,14 +210,81 @@ def main():
     # pass observed data and params to new ForwardBackward object
     fb = ForwardBackwardClass(observed, p_init, p_trans, p_emit)
     fb.compute_fb()
-    decodings,post_means = fb.get_posteriors()
+    fw_bw_table = fb.get_fw_bw_table()
+    decodings, post_means = fb.get_posteriors()
 
-    # print(len(path), len(decodings), len(post_means))
     step_triples = list(zip(path,decodings,post_means))
 
     outfile = out_dir+"decodings_initial_"+suffix+".txt"
     write_decoding_to_file(step_triples, outfile)
     make_graph(truth, path, decodings, post_means, suffix)
+
+
+    # Part 2: Baum-Welch Training
+    A_kl_table = []
+    # for i in range(train_iters):
+    for i in range (1):
+
+        for k in states:
+            A_kl_col = []
+            for l in states:
+                A_kl_cur = 0
+                for step in range(0, len(xs)-1):
+                    P = calc_expected_transition(fb, k, l, step, xs, \
+                                                 fw_bw_table, p_trans, p_emit)
+                    A_kl_cur += P
+                print("AKL CUR, ", A_kl_cur)
+                A_kl_col.append(A_kl_cur)
+            # append this column of A_kl vals to table
+            A_kl_table.append(A_kl_col)
+
+    # estimated transition probs normalization step
+    
+
+
+def calc_expected_transition(fb, k, l, i, xs, fw_bw_table, p_trans, p_emit):
+    f_k_i = fw_bw_table[i][k]["forward"]
+    a_k_l = log(p_trans[k][l])
+    e_l_term = log(p_emit[l][xs[i+1]])
+    b_l_term = fw_bw_table[i+1][l]["backward"]
+    p_xbar = fb.p_xbar
+
+    non_log_res = e**(((f_k_i + a_k_l + e_l_term + b_l_term) - p_xbar))
+    return(non_log_res)
+
+
+
+    # update transition probabilities
+
+    # update emission probabilities
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # test our data with expected data
     # with open(outfile, 'r') as f:
