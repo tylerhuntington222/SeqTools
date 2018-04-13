@@ -88,7 +88,11 @@ class ForwardBackwardClass:
 
     @staticmethod
     def array_log_summer(array):
-        return(ForwardBackwardClass.rec_array_log_summer(array[1:], array[0]))
+        # print("ARRAY: ", array)
+        if len(array) == 0:
+            raise ValueError
+        else:
+            return(ForwardBackwardClass.rec_array_log_summer(array[1:], array[0]))
 
     def compute_backward(self):
         for i in range(len(self.p_inits)):

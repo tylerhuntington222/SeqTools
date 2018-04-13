@@ -9,6 +9,7 @@ from viterbi import ViterbiClass
 from baum_welch import ForwardBackwardClass
 import sys
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 # TIMES = np.array([0.32, 1.75, 4.54, 9.40]) # replaced with decodings dict
                                              # in ViterbiClass.py
@@ -221,26 +222,107 @@ def main():
 
 
     # Part 2: Baum-Welch Training
+
+    # initialize values for first training iteration
+    curr_fb = fb
+    curr_fw_bw_table = fw_bw_table
+    est_p_init = p_init
+    est_p_trans = p_trans
+    est_p_emit = p_emit
+
+    for step in range(train_iters):
+        print("P_INIT: ", est_p_init)
+        print("P_TRANS: ", est_p_trans)
+        print("P_EMIT: ", est_p_emit)
+
+        print("Iteration: %d" %step)
+        print(curr_fb.p_xbar)
+        est_p_init = estimate_p_init(curr_fw_bw_table, curr_fb, states)
+        # print("\nfinish p_init")
+        est_p_trans = estimate_p_trans(curr_fw_bw_table,curr_fb,states,xs,est_p_trans,est_p_emit)
+        # print("finish p_trans")
+        est_p_emit = estimate_p_emit(curr_fw_bw_table, curr_fb, states, xs)
+        # print("finish p_emit\n")
+        curr_fb = ForwardBackwardClass(observed, est_p_init, est_p_trans, est_p_emit)
+        curr_fb.compute_fb()
+        curr_fw_bw_table = curr_fb.get_fw_bw_table()
+
+
+
+def estimate_p_init(fw_bw_table, fb, states):
+    # calculate pi
+    pi_vals = {}
+    for k in states:
+        # print(fw_bw_table)
+        # print("Which k ?", k)
+        f_val = fw_bw_table[0][k]["forward"]
+        b_val = fw_bw_table[0][k]["backward"]
+        p_val = fb.p_xbar
+        pi_vals[k] = e**((f_val + b_val) - p_val)
+    return pi_vals
+
+def estimate_p_trans(fw_bw_table, fb, states, xs, p_trans, p_emit):
     A_kl_table = []
     # for i in range(train_iters):
-    for i in range (1):
+    for k in states:
+        A_kl_col = []
+        for l in states:
+            A_kl_cur = 0
+            for step in range(0, len(xs)-1):
+                # calculate P -- returned as non-log value
 
-        for k in states:
-            A_kl_col = []
-            for l in states:
-                A_kl_cur = 0
-                for step in range(0, len(xs)-1):
-                    P = calc_expected_transition(fb, k, l, step, xs, \
-                                                 fw_bw_table, p_trans, p_emit)
-                    A_kl_cur += P
-                print("AKL CUR, ", A_kl_cur)
-                A_kl_col.append(A_kl_cur)
-            # append this column of A_kl vals to table
-            A_kl_table.append(A_kl_col)
+                P = calc_expected_transition(fb, k, l, step, xs, \
+                                             fw_bw_table, p_trans, p_emit)
+                if P == 0:
+                    print("BAD")
+                A_kl_cur += P
+            # print("AKL CUR, ", A_kl_cur)
+            A_kl_col.append(A_kl_cur)
+        # append this column of A_kl vals to table
+        A_kl_table.append(A_kl_col)
 
     # estimated transition probs normalization step
-    
+    a_kl_table = defaultdict(dict)
+    for k in states:
+        for l in states:
+            acc = 0
+            for l_prime in states:
+                acc += A_kl_table[k][l_prime]
 
+            a_kl_table[k][l] = A_kl_table[k][l] / acc
+    return a_kl_table
+
+def estimate_p_emit(fw_bw_table,fb,states,xs):
+    # calculate emissions
+    E_kb_table = defaultdict(dict)
+    for k in states:
+        for b in range(2):
+            acc = ""
+            for i in xs:
+                if i == b:
+                    f_val = fw_bw_table[k][i]["forward"]
+                    b_val = fw_bw_table[k][i]["backward"]
+                    p_val = fb.p_xbar
+                    res = (f_val + b_val) - p_val
+                    if acc == "":
+                        acc = res
+                    else:
+                        acc = ForwardBackwardClass.log_summer(acc, res)
+            E_kb_table[k][b] = acc
+
+    # emissions normalization step
+    e_kb_table = defaultdict(dict)
+    for k in states:
+        for b in range(2):
+            acc = ""
+            for b_prime in range(2):
+                res = E_kb_table[k][b_prime]
+                if acc == "":
+                    acc = res
+                else:
+                    acc = ForwardBackwardClass.log_summer(acc, res)
+            e_kb_table[k][b] = e**(E_kb_table[k][b] - acc)
+    return(e_kb_table)
 
 def calc_expected_transition(fb, k, l, i, xs, fw_bw_table, p_trans, p_emit):
     f_k_i = fw_bw_table[i][k]["forward"]
