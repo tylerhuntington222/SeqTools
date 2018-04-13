@@ -298,10 +298,10 @@ def estimate_p_emit(fw_bw_table,fb,states,xs):
     for k in states:
         for b in range(2):
             acc = ""
-            for i in xs:
-                if i == b:
-                    f_val = fw_bw_table[k][i]["forward"]
-                    b_val = fw_bw_table[k][i]["backward"]
+            for i in range(len(xs)):
+                if xs[i] == b:
+                    f_val = fw_bw_table[i][k]["forward"]
+                    b_val = fw_bw_table[i][k]["backward"]
                     p_val = fb.p_xbar
                     res = (f_val + b_val) - p_val
                     if acc == "":
