@@ -165,16 +165,17 @@ def write_decoding_to_file(step_data, outfile):
             f.write(line)
             f.write("\n")
 
-def make_graph(truth,viterbi,decoding,mean,suffix):
+def make_graph(truth,viterbi,decoding,mean,suffix,tag):
     plt.plot([i for i in range(len(truth))], truth, '#000000', linewidth=2)
     plt.plot([i for i in range(len(viterbi))], viterbi, '#006600')
     plt.plot([i for i in range(len(decoding))], decoding, '#0000FF')
     plt.plot([i for i in range(len(mean))], mean, '#CC0000')
     plt.legend(["truth", "Viterbi", "decoding", "mean"], loc=9)
-    plt.title("Initial Decodings, %s" %suffix)
+    plt.title("%s decodings, %s" %(tag, suffix))
     plt.xlabel("locus")
     plt.ylabel("TMRCA")
-    plt.savefig("output/plot_initial_%s.png" %suffix)
+    plt.savefig("output/plot_%s_%s.png" %(tag,suffix))
+    plt.clf()
 
 
 def main():
@@ -218,10 +219,11 @@ def main():
 
     outfile = out_dir+"decodings_initial_"+suffix+".txt"
     write_decoding_to_file(step_triples, outfile)
-    make_graph(truth, path, decodings, post_means, suffix)
+    make_graph(truth, path, decodings, post_means, suffix, "initial")
 
 
     # Part 2: Baum-Welch Training
+    print("Baum-Welch")
 
     # initialize values for first training iteration
     curr_fb = fb
@@ -230,10 +232,12 @@ def main():
     est_p_trans = p_trans
     est_p_emit = p_emit
 
+    likelihoods = [curr_fb.p_xbar]
+
     for step in range(train_iters):
-        print("P_INIT: ", est_p_init)
-        print("P_TRANS: ", est_p_trans)
-        print("P_EMIT: ", est_p_emit)
+        # print("P_INIT: ", est_p_init)
+        # print("P_TRANS: ", est_p_trans)
+        # print("P_EMIT: ", est_p_emit)
 
         print("Iteration: %d" %step)
         print(curr_fb.p_xbar)
@@ -248,6 +252,47 @@ def main():
                                         est_p_emit)
         curr_fb.compute_fb()
         curr_fw_bw_table = curr_fb.get_fw_bw_table()
+
+    likelihoods.append(curr_fb.p_xbar)
+    write_log_liklihoods("output/likelihoods_%s.txt" %suffix,likelihoods)
+
+    params = (est_p_init, est_p_trans, est_p_emit)
+    write_estimated_params_file("output/estimated_parameters_%s.txt" %suffix, params)
+
+
+    # pass observed data and params to new Viterbi object
+    viterbi = ViterbiClass(observed, est_p_init, est_p_trans, est_p_emit)
+
+    # calculate highest probability path
+    path = viterbi.compute_path()
+
+    # pass observed data and params to new ForwardBackward object
+    fb = ForwardBackwardClass(observed, est_p_init, est_p_trans, est_p_emit)
+    fb.compute_fb()
+    fw_bw_table = fb.get_fw_bw_table()
+    decodings, post_means = fb.get_posteriors()
+
+    step_triples = list(zip(path,decodings,post_means))
+
+    outfile = "output/decodings_estimated_"+suffix+".txt"
+    write_decoding_to_file(step_triples, outfile)
+    make_graph(truth, path, decodings, post_means, suffix, "estimated")
+
+
+
+
+
+def write_log_liklihoods(outfile, likelihoods):
+    with open(outfile, 'w') as f:
+        line_1 = "# Likelihood under {initial, estimated} parameters"
+        f.write(line_1)
+        f.write("\n"+str(likelihoods[0]))
+        f.write("\n"+str(likelihoods[1]))
+
+def write_estimated_params_file(outfile, params):
+    string = display_params(params)
+    with open(outfile, 'w') as f:
+        f.write(string)
 
 
 
