@@ -14,3 +14,17 @@ if __name__ == "__main__":
     for i in range(10):
         test_data.append(("a", "b", "c"))
     write_decoding_to_file(test_data, "test.txt")
+
+
+
+def write_log_liklihoods(outfile, likelihoods):
+    with open(outfile, 'w') as f:
+        line_1 = "# Likelihood under {initial, estimated} parameters"
+        f.write(line_1)
+        f.write(str(likelihoods[0]))
+        f.write(str(likelihoods[1]))
+
+def write_estimated_params_file(outfile, params):
+    string = display_params(params)
+    with open(outfile, 'w') as f:
+        f.write(string)

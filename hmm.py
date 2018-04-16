@@ -239,11 +239,13 @@ def main():
         print(curr_fb.p_xbar)
         est_p_init = estimate_p_init(curr_fw_bw_table, curr_fb, states)
         # print("\nfinish p_init")
-        est_p_trans = estimate_p_trans(curr_fw_bw_table,curr_fb,states,xs,est_p_trans,est_p_emit)
+        est_p_trans = estimate_p_trans(curr_fw_bw_table,curr_fb,states, \
+                                        xs,est_p_trans,est_p_emit)
         # print("finish p_trans")
         est_p_emit = estimate_p_emit(curr_fw_bw_table, curr_fb, states, xs)
         # print("finish p_emit\n")
-        curr_fb = ForwardBackwardClass(observed, est_p_init, est_p_trans, est_p_emit)
+        curr_fb = ForwardBackwardClass(observed, est_p_init, est_p_trans, \
+                                        est_p_emit)
         curr_fb.compute_fb()
         curr_fw_bw_table = curr_fb.get_fw_bw_table()
 
@@ -334,11 +336,6 @@ def calc_expected_transition(fb, k, l, i, xs, fw_bw_table, p_trans, p_emit):
     non_log_res = e**(((f_k_i + a_k_l + e_l_term + b_l_term) - p_xbar))
     return(non_log_res)
 
-
-
-    # update transition probabilities
-
-    # update emission probabilities
 
 
 
