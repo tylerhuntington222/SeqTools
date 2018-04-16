@@ -1,6 +1,15 @@
 """
-Top-level comment
-Note: feel free to modify the starter code below
+hmm.py
+
+A program for estimating the hidden state sequence of DNA sequence data
+using Hidden Markov Models. Both Viterbi's Algorithm and the Forward Backward
+algorithm are implemented.
+
+Authors:
+Nathan Holeman
+Tyler Huntington
+
+April 2018
 """
 
 import optparse
@@ -15,6 +24,22 @@ from collections import defaultdict
                                              # in ViterbiClass.py
 
 def parse_args():
+    """
+    Parses the command line arguments for running the program
+
+    Params:
+        None
+    Returns:
+        Tuple containing the following items:
+
+        observed_data_fasta_file
+        input_parameter_file
+        true_tmrca_vals_file
+        num_training_iterations
+        output_directory
+        output_file_suffix
+    """
+
 
     # set up command line argument parser
     desc   = "A program to perform Viterbi's Algorithm."
@@ -106,6 +131,18 @@ def parse_params(param_filename):
     return (p_init, p_trans, p_emit, states)
 
 def load_observed_data(fasta_file):
+    """
+    Loads the observed data in .fasta file format for use in Hidden Markov
+    Model.
+
+    Params:
+        fasta_file: filepath to fasta file containing two sequences of
+            from different individuals over the same region of the genome.
+
+    Returns: string of "0"s and "1"s in which each numeral corresponds to
+        a match ("0") or mismatch ("1") between the two input sequences
+        at a particular site
+    """
 
     seqs = []
     cur_seq = ""
@@ -156,6 +193,24 @@ def display_params(params):
     return param_str
 
 def write_decoding_to_file(step_data, outfile):
+    """
+    Writes the Viterbi decoding, posterior decoding and posterior mean
+    of the hidden sequence to an output file.
+
+    Params:
+        step_data: a tuple of Viterbi decodings, posterior decodings and
+        posterior means structured as lists.
+
+        outfile: file to which the decodings should be written
+
+    Returns:
+        None
+
+    Side Effects:
+        Writes the three types of input decodings to the output file
+        passed by caller.
+    """
+
     with open(outfile, 'w') as f:
         f.write("# Viterbi_decoding posterior_decoding posterior_mean")
         f.write("\n")
@@ -166,6 +221,25 @@ def write_decoding_to_file(step_data, outfile):
             f.write("\n")
 
 def make_graph(truth,viterbi,decoding,mean,suffix,tag):
+    """
+    Creates a plot of the true state sequence compared to the
+    estimated state sequence determined by Viterbi decoding, posterior
+    decoding and posterior mean calculations.
+
+    Params:
+        truth: a list of the true TMRCA vals (i.e. the hidden sequence)
+        viterbi: list of the viterbi decodings
+        decodings: listo of the posterior decoding vals
+        mean: list of the posterior means
+        suffix: a suffix to be attached to the output graph file
+        tag: "initial" or "estimated" indicating the nature of the parameters
+            used to generate the estimated sequences.
+    Returns:
+        None
+    Side Effects:
+        Creates plot and exports it to /ouput directory.
+    """
+
     plt.plot([i for i in range(len(truth))], truth, '#000000', linewidth=2)
     plt.plot([i for i in range(len(viterbi))], viterbi, '#006600')
     plt.plot([i for i in range(len(decoding))], decoding, '#0000FF')
@@ -278,11 +352,23 @@ def main():
     write_decoding_to_file(step_triples, outfile)
     make_graph(truth, path, decodings, post_means, suffix, "estimated")
 
-
-
-
-
 def write_log_liklihoods(outfile, likelihoods):
+    """
+    Writes the log likelihoods to an output file.
+
+    Params:
+        outfile: output file name
+        liklihoods: list of two elements where the first element is the
+            initial log liklihood of the estimated sequence given the
+            observed data and the second in the same probability
+            calculated when using estimated paramters following 16 iterations
+            of Baum Welch training
+        returns:
+            None
+        Side-Effects:
+            Writes liklihoods to output file
+    """
+
     with open(outfile, 'w') as f:
         line_1 = "# Likelihood under {initial, estimated} parameters"
         f.write(line_1)
@@ -290,6 +376,21 @@ def write_log_liklihoods(outfile, likelihoods):
         f.write("\n"+str(likelihoods[1]))
 
 def write_estimated_params_file(outfile, params):
+    """
+    Writes the estimated params to an output file.
+
+    Params:
+        outfile: output file name
+        params: tuple of:
+            estimated initial probabilities
+            estimated transition probabilities
+            estimated emission probabilities
+
+        Returns:
+            None
+        Side-Effects:
+            Writes estimated params to output file
+    """
     string = display_params(params)
     with open(outfile, 'w') as f:
         f.write(string)
@@ -297,6 +398,21 @@ def write_estimated_params_file(outfile, params):
 
 
 def estimate_p_init(fw_bw_table, fb, states):
+    """
+    Estimates initial probabilities based on a run of the forward backward
+    algorithm.
+
+    Params:
+        fw_bw_table: the DP table generated by running the forward backward
+            algorith.
+        fb: an object of the ForwardBackwardClass from which estimated params
+            should be determined
+        states: a list of possible states
+    Returns:
+        estimated initial probabilities for each state.
+
+    """
+
     # calculate pi
     pi_vals = {}
     for k in states:
@@ -309,6 +425,24 @@ def estimate_p_init(fw_bw_table, fb, states):
     return pi_vals
 
 def estimate_p_trans(fw_bw_table, fb, states, xs, p_trans, p_emit):
+    """
+    Estimates transition probabilities based on a run of the forward backward
+    algorithm.
+
+    Params:
+        fw_bw_table: the DP table generated by running the forward backward
+            algorithm.
+        fb: an object of the ForwardBackwardClass from which estimated params
+            should be determined
+        states: a list of possible states
+        xs: the observed state sequence as a list of ints
+        p_trans: the initial transition probabilities
+        p_emit: the inital emission probabilities
+
+    Returns:
+        estimated transition probabilities for each state.
+
+    """
     A_kl_table = []
     # for i in range(train_iters):
     for k in states:
@@ -340,6 +474,22 @@ def estimate_p_trans(fw_bw_table, fb, states, xs, p_trans, p_emit):
     return a_kl_table
 
 def estimate_p_emit(fw_bw_table,fb,states,xs):
+    """
+     Estimates emission probabilities based on a run of the forward backward
+    algorithm.
+
+    Params:
+        fw_bw_table: the DP table generated by running the forward backward
+            algorithm.
+        fb: an object of the ForwardBackwardClass from which estimated params
+            should be determined
+        states: a list of possible states
+        xs: the observed state sequence as a list of ints
+
+    Returns:
+        estimated emission probabilities for each state.
+
+    """
     # calculate emissions
     E_kb_table = defaultdict(dict)
     for k in states:
@@ -372,6 +522,28 @@ def estimate_p_emit(fw_bw_table,fb,states,xs):
     return(e_kb_table)
 
 def calc_expected_transition(fb, k, l, i, xs, fw_bw_table, p_trans, p_emit):
+    """
+    Calculates the expected transition term for estimating transition
+        probality of a given state and step in the observed sequence.
+
+    Params:
+        fb: an object of the ForwardBackwardClass from which estimated params
+            should be determined
+        k: the state from which we are transitioning out of
+        l: the state we are transitioning to
+        xs: the observed state sequence as a list of ints
+
+        fw_bw_table: the DP table generated by running the forward backward
+            algorithm.
+        fb: an object of the ForwardBackwardClass from which estimated params
+            should be determined
+        p_trans: the initial transition probabilities
+        p_emit: the inital emission probabilities
+
+    Returns:
+        Expected transition term for a given k, l, and i in our observed data.
+
+    """
     f_k_i = fw_bw_table[i][k]["forward"]
     a_k_l = log(p_trans[k][l])
     e_l_term = log(p_emit[l][xs[i+1]])
