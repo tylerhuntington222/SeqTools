@@ -9,7 +9,7 @@ Authors:
 Nathan Holeman
 Tyler Huntington
 
-April 2018
+April 16, 2018
 """
 
 import optparse
@@ -20,8 +20,6 @@ import sys
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-# TIMES = np.array([0.32, 1.75, 4.54, 9.40]) # replaced with decodings dict
-                                             # in ViterbiClass.py
 
 def parse_args():
     """
@@ -39,7 +37,6 @@ def parse_args():
         output_directory
         output_file_suffix
     """
-
 
     # set up command line argument parser
     desc   = "A program to perform Viterbi's Algorithm."
@@ -101,7 +98,6 @@ def parse_params(param_filename):
 
     with open(param_filename, 'r') as f:
         for line in f:
-            # print(line)
             if line.strip() == "# Initial probabilities":
                 next(f)
                 record = f.readline().strip().split()
@@ -309,19 +305,12 @@ def main():
     likelihoods = [curr_fb.p_xbar]
 
     for step in range(train_iters):
-        # print("P_INIT: ", est_p_init)
-        # print("P_TRANS: ", est_p_trans)
-        # print("P_EMIT: ", est_p_emit)
-
         print("Iteration: %d" %step)
         print(curr_fb.p_xbar)
         est_p_init = estimate_p_init(curr_fw_bw_table, curr_fb, states)
-        # print("\nfinish p_init")
         est_p_trans = estimate_p_trans(curr_fw_bw_table,curr_fb,states, \
                                         xs,est_p_trans,est_p_emit)
-        # print("finish p_trans")
         est_p_emit = estimate_p_emit(curr_fw_bw_table, curr_fb, states, xs)
-        # print("finish p_emit\n")
         curr_fb = ForwardBackwardClass(observed, est_p_init, est_p_trans, \
                                         est_p_emit)
         curr_fb.compute_fb()
@@ -416,8 +405,6 @@ def estimate_p_init(fw_bw_table, fb, states):
     # calculate pi
     pi_vals = {}
     for k in states:
-        # print(fw_bw_table)
-        # print("Which k ?", k)
         f_val = fw_bw_table[0][k]["forward"]
         b_val = fw_bw_table[0][k]["backward"]
         p_val = fb.p_xbar
@@ -451,13 +438,10 @@ def estimate_p_trans(fw_bw_table, fb, states, xs, p_trans, p_emit):
             A_kl_cur = 0
             for step in range(0, len(xs)-1):
                 # calculate P -- returned as non-log value
-
                 P = calc_expected_transition(fb, k, l, step, xs, \
                                              fw_bw_table, p_trans, p_emit)
-                if P == 0:
-                    print("BAD")
+                # increment A_kl_cur accumulator
                 A_kl_cur += P
-            # print("AKL CUR, ", A_kl_cur)
             A_kl_col.append(A_kl_cur)
         # append this column of A_kl vals to table
         A_kl_table.append(A_kl_col)
